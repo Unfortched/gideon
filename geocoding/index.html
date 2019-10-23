@@ -1,0 +1,237 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<title>Проложить оптимальный маршрут с учетом пробок и посчитать затраты на топливо</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous" type="da78a28bd28e2952a8c5c0ca-text/javascript"></script>
+<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="da78a28bd28e2952a8c5c0ca-text/javascript"></script>
+<style> 
+        head, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            position: absolute;
+        }
+        #info {
+            display: none;
+            min-width: 176px;
+            max-width: 400px;
+            width: 302px;
+            background: #FFF;
+            z-index: 8000;
+            margin-right: 0px;
+            margin-left: 10px;
+            position: absolute;
+            margin-top: 220px;
+            -webkit-box-shadow: inset 0 0 0 1px rgba(0,0,0,.15), 0 8px 30px -5px rgba(0,0,0,.5);
+            -moz-box-shadow: inset 1px 1px 10px #aaa;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,.15), 0 8px 30px -5px rgba(0,0,0,.5);        
+        }
+        #infotext, .text {
+            display: block;
+            padding: 16px;
+            line-height: 20px;
+            font-family: sans-serif;
+            font-size: 12px;
+        }
+        #infotextprice {
+            padding: 0 16px 16px 16px;
+            display: block;
+            line-height: 20px;
+            font-family: sans-serif;
+            font-size: 12px;
+        }
+        #price {
+            width: 35px;
+            padding-left: 35px;
+            height: 28px;
+            border: none;
+            -webkit-transition: box-shadow .15s ease-out;
+            transition: box-shadow .15s ease-out;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,.2);
+            background: url(/wp-content/uploads/2014/01/petrol_price_icon.gif) no-repeat 8px 8px #fff;
+        }
+        #fuel {
+            width: 35px;
+            padding-left: 32px;
+            height: 28px;
+            border: none;
+            -webkit-transition: box-shadow .15s ease-out;
+            transition: box-shadow .15s ease-out;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,.2);
+            background: url(/wp-content/uploads/2014/01/petrol_icon.gif) no-repeat 8px 8px #fff;
+        }
+        input[type='number'] {
+        -moz-appearance:textfield;
+        }
+
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+        }
+        .am {
+        color: #999;
+        }
+        .am a, .am a:hover, .am a:link, .am a:active, .am a:visited {
+        text-decoration: none;
+        color: #333;
+        font-weight: 600;
+        }
+    </style>
+<script type="da78a28bd28e2952a8c5c0ca-text/javascript">
+        function recalc() {
+            var mydis = document.getElementById('infotext');
+            var mydisprice = document.getElementById('infotextprice');
+            var fuel = document.getElementById("fuel").value;
+            var price = document.getElementById("price").value;
+            var rashod = Math.round((window.length.value/100000)*fuel);
+            var money = Math.round(rashod*price);
+            mydisprice.innerHTML='';
+            mydisprice.insertAdjacentHTML("beforeend", 'Примерные расходы топлива <strong>' + rashod + ' л.</strong><br />');
+            mydisprice.insertAdjacentHTML("beforeend", 'Расходы на топливо <strong>' + money + ' руб.</strong><br />');
+        }
+    </script>
+</head>
+<body>
+<div id="map">
+<div id="info">
+<div style="padding-left: 25px; float:left" class="text">
+<input type="number" name="fuel" id="fuel" value="40" oninput="if (!window.__cfRLUnblockHandlers) return false; recalc()" data-cf-modified-da78a28bd28e2952a8c5c0ca-="" /> литр/100км
+<input type="number" name="price" id="price" value="45" oninput="if (!window.__cfRLUnblockHandlers) return false; recalc()" data-cf-modified-da78a28bd28e2952a8c5c0ca-="" /> руб/литр
+</div>
+<div id="infotext"></div>
+<div id="infotextprice"></div>
+</div>
+</div>
+<script type="da78a28bd28e2952a8c5c0ca-text/javascript">
+    ymaps.ready(init);
+
+    function init() {
+    var mydis = document.getElementById('infotext');
+    var mydisprice = document.getElementById('infotextprice'); 
+    myMap = new ymaps.Map('map', { // Выводим в слой с id="map"
+    center: [54.78517, 56.04562], // центрируем карту на Санкт-Петербурге
+    zoom: 11, // Ставим зум кратный 11
+    controls: [] // Никакие кнопки управления пока не добавляем
+    }),
+
+
+    // Создадим панель маршрутизации.
+    routePanelControl = new ymaps.control.RoutePanel({
+        options: {
+            showHeader: true, //Показывать заголовок навигационной панели
+            title: 'Маршрут', //Заголовок панели
+            allowSwitch: true, //Отображать кнопку для смены местами Откуда/Куда
+            maxWidth: '300px', //Ширина панели (макс. 400px)
+            float: 'left' // Расположение в левой части карты
+        }
+        }),
+
+    routePanelControl.routePanel.state.set({
+        // Адрес начальной точки.
+        from: 
+'Ufa1',
+        // Адрес конечной точки.
+        to: 
+'Ufa2'
+    });
+
+    zoomControl = new ymaps.control.ZoomControl({
+        options: {
+            float: 'right', // Расположение в правой части карты
+            position: {     //Координаты 
+                top: 245,   //расположения
+                right: 10   //кнопок зума
+            }
+        }
+    });
+    // Пользователь сможет построить только автомобильный маршрут.
+    routePanelControl.routePanel.options.set({
+        types: {auto: true},
+    });
+    myMap.controls.add(routePanelControl).add(zoomControl); //Добавляем кнопки на карту
+
+    // Получим ссылку на маршрут.
+    routePanelControl.routePanel.getRouteAsync().then(function (route) {
+
+        // Зададим максимально допустимое число маршрутов, возвращаемых мультимаршрутизатором.
+        route.model.setParams({results: 1}, true);
+        //Искать оптимальный маршрут с учетом пробок
+        route.model.setParams({avoidTrafficJams: true}, true);
+        //Разрешаем перетаскивать точки между начальной и конечной точками
+        route.editor.start();
+
+        // Повесим обработчик на событие построения маршрута.
+        route.model.events.add('requestsuccess', function () {
+
+            var activeRoute = route.getActiveRoute();
+            if (activeRoute) {
+        // Получим протяженность маршрута.
+        $('#info').css("display", "block"); // Показываем наш блок с информацией
+        length = route.getActiveRoute().properties.get("distance"), // Протяженность маршрута
+        time = route.getActiveRoute().properties.get("duration"), // Время маршрута
+        blocked = route.getActiveRoute().properties.get("blocked"), // Есть ли перекрытия на маршруте
+        tolls = route.getActiveRoute().properties.get("hasTolls"), // Есть ли платные участки дороги
+        timeintraffic = route.getActiveRoute().properties.get("durationInTraffic"); // Время с учетом пробок
+        var fuel = document.getElementById("fuel").value; // Считываем расход топлива из формы
+        var price = document.getElementById("price").value; // Считываем стоимость топлива из формы
+        var rashod = Math.round((length.value/100000)*fuel); // Считаем сколько топлива потратим
+        var money = Math.round(rashod*price); // Считаем сколько денег потратим на топливо
+        mydis.innerHTML='';
+        mydisprice.innerHTML='';
+        mydis.insertAdjacentHTML("beforeend", 'Оптимальный маршрут составляет <strong>' + length.text + '</strong><br />');
+        mydis.insertAdjacentHTML("beforeend", 'Время с учетом пробок <strong>' + timeintraffic.text + '</strong><br />');
+        mydisprice.insertAdjacentHTML("beforeend", 'Примерные расходы топлива <strong>' + rashod + ' л.</strong><br />');
+        mydisprice.insertAdjacentHTML("beforeend", 'Расходы на топливо <strong>' + money + ' руб.</strong><br />');
+        if (blocked) {mydis.insertAdjacentHTML("beforeend", '<em style="color: red">На участке есть перекрытия дороги!</em><br />');}
+        if (tolls) {mydis.insertAdjacentHTML("beforeend", '<em style="color: red">На маршруте есть платные участки дороги!</em><br />');}
+        activeRoute.balloon.open();
+            }
+        });
+    });
+}
+    </script>
+
+
+<script type="da78a28bd28e2952a8c5c0ca-text/javascript">
+    (function (d, w, c) {
+        (w[c] = w[c] || []).push(function() {
+            try {
+                w.yaCounter45096969 = new Ya.Metrika2({
+                    id:45096969,
+                    clickmap:true,
+                    trackLinks:true,
+                    accurateTrackBounce:true,
+                    webvisor:true,
+                    trackHash:true
+                });
+            } catch(e) { }
+        });
+
+        var n = d.getElementsByTagName("script")[0],
+            s = d.createElement("script"),
+            f = function () { n.parentNode.insertBefore(s, n); };
+        s.type = "text/javascript";
+        s.async = true;
+        s.src = "https://cdn.jsdelivr.net/npm/yandex-metrica-watch/tag.js";
+
+        if (w.opera == "[object Opera]") {
+            d.addEventListener("DOMContentLoaded", f, false);
+        } else { f(); }
+    })(document, window, "yandex_metrika_callbacks2");
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/45096969" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+
+<script type="da78a28bd28e2952a8c5c0ca-text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-7226250-10', 'auto');
+  ga('send', 'pageview');
+
+</script>
+<script src="https://ajax.cloudflare.com/cdn-cgi/scripts/a2bd7673/cloudflare-static/rocket-loader.min.js" data-cf-settings="da78a28bd28e2952a8c5c0ca-|49" defer=""></script></body>
+</html>
