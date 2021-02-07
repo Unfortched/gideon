@@ -1,8 +1,0 @@
-C:\Users\Unfortched\Documents\SharpDevelop Projects\TCMIP\TCMIP\bin\Debug\TCMIP.exe.config
-C:\Users\Unfortched\Documents\SharpDevelop Projects\TCMIP\TCMIP\bin\Debug\TCMIP.exe
-C:\Users\Unfortched\Documents\SharpDevelop Projects\TCMIP\TCMIP\bin\Debug\TCMIP.pdb
-C:\Users\Unfortched\Documents\SharpDevelop Projects\TCMIP\TCMIP\obj\Debug\TCMIP.csprojResolveAssemblyReference.cache
-C:\Users\Unfortched\Documents\SharpDevelop Projects\TCMIP\TCMIP\obj\Debug\TCMIP.MainForm.resources
-C:\Users\Unfortched\Documents\SharpDevelop Projects\TCMIP\TCMIP\obj\Debug\TCMIP.csproj.GenerateResource.Cache
-C:\Users\Unfortched\Documents\SharpDevelop Projects\TCMIP\TCMIP\obj\Debug\TCMIP.exe
-C:\Users\Unfortched\Documents\SharpDevelop Projects\TCMIP\TCMIP\obj\Debug\TCMIP.pdb
