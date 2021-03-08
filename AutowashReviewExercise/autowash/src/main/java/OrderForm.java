@@ -36,7 +36,12 @@ public class OrderForm extends JFrame {
         orderDao = new OrderDao(jdbcTemplate());
         orderDao.resetTables();
         basicFrameSettings();
-        refreshOrderList();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                refreshOrderList();
+            }
+        }, 0, 1000);
 
         createOrderButton.addActionListener(new ActionListener() {
             @Override
@@ -68,19 +73,14 @@ public class OrderForm extends JFrame {
     }
 
     private void refreshOrderList(){
-        timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                List<Customer> list = new ArrayList(orderDao.getCustomers());
-                TableModel table = new CustomerTable(list);
-                orderTable.setModel(table);
+        List<Customer> list = new ArrayList(orderDao.getCustomers());
+        TableModel table = new CustomerTable(list);
+        orderTable.setModel(table);
 
-                if(!list.isEmpty())
-                    currentCustomerLabel.setText(orderTable.getValueAt(0, 1).toString());
-                else currentCustomerLabel.setText("Готов к работе...");
-                orderDao.timeControl();
-            }
-        }, 0, 1000);
+        if(!list.isEmpty())
+            currentCustomerLabel.setText(orderTable.getValueAt(0, 1).toString());
+        else currentCustomerLabel.setText("Готов к работе...");
+        orderDao.timeControl();
     }
 
     private int sumOfServices(){
